@@ -46,7 +46,6 @@ Thumbs.db
 # Backend specific
 /backend/uploads/*
 !/backend/uploads/.gitkeep
-backend\node_modules
 
 # Frontend specific
 /frontend/.env.local

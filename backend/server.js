@@ -23,11 +23,29 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// Enable CORS for all origins (can restrict if needed)
-app.use(cors());
+// ✅ Enable CORS for Vercel frontend & local dev
+app.use(
+  cors({
+    origin: [
+      "https://pulse-archive-frontend.vercel.app", // Vercel frontend
+      "http://localhost:3000", // local dev
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
-// Parse JSON request bodies
+// ✅ Parse JSON request bodies
 app.use(express.json());
+
+// Debug incoming requests
+app.use((req, res, next) => {
+  console.log(`📩 ${req.method} ${req.originalUrl}`);
+  if (req.method === "POST" || req.method === "PUT") {
+    console.log("📝 Body received:", req.body);
+  }
+  next();
+});
 
 // Static folder for file uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -42,10 +60,7 @@ app.use(limiter);
 
 // ---------- DATABASE CONNECTION ----------
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => {
     console.error("❌ MongoDB Connection Error:", err.message);
@@ -56,11 +71,11 @@ mongoose
 
 // Health check route
 app.get("/", (req, res) => {
-  res.json({ status: "ok", message: "📦 MedVault API is running..." });
+  res.json({ status: "ok", message: "📦 PulseArchive API is running..." });
 });
 
 // Auth (Register, Login, Me)
-app.use("/api/auth", authRoutes);
+app.use("/api/v1/auth", authRoutes);
 
 // Records (CRUD + Public/Private)
 app.use("/api/records", recordRoutes);

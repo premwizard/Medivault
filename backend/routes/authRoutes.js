@@ -13,35 +13,44 @@ const generateToken = (userId, email) => {
   return jwt.sign(
     { id: userId, email },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "1d" } // configurable expiry
+    { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
   );
 };
 
-// @route   POST /api/auth/register
+// Debug middleware (log body)
+router.use((req, res, next) => {
+  if (req.method === "POST") {
+    console.log("📩 Incoming request:", req.originalUrl);
+    console.log("📝 Body:", req.body);
+  }
+  next();
+});
+
+// @route   POST /api/v1/auth/register
 // @desc    Register new user
 // @access  Public
 router.post("/register", async (req, res) => {
   try {
     let { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (!name?.trim() || !email?.trim() || !password?.trim()) {
+      return res.status(400).json({ message: "All fields (name, email, password) are required" });
     }
 
     name = name.trim();
     email = email.trim().toLowerCase();
 
-    // Check if user exists
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({ message: "User already exists" });
     }
 
-    // Create user (password hashing handled by User model pre-save hook)
+    // Create new user
     const user = new User({ name, email, password });
     await user.save();
 
-    // Generate token
+    // Generate JWT
     const token = generateToken(user._id, user.email);
 
     return res.status(201).json({
@@ -49,25 +58,25 @@ router.post("/register", async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error("Register Error:", err);
+    console.error("❌ Register Error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-// @route   POST /api/auth/login
-// @desc    Authenticate user and get token
+// @route   POST /api/v1/auth/login
+// @desc    Authenticate user
 // @access  Public
 router.post("/login", async (req, res) => {
   try {
     let { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!email?.trim() || !password?.trim()) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
     email = email.trim().toLowerCase();
 
-    // Find user (include password explicitly)
+    // Find user
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -79,7 +88,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate token
+    // Generate JWT
     const token = generateToken(user._id, user.email);
 
     return res.json({
@@ -87,7 +96,7 @@ router.post("/login", async (req, res) => {
       token,
     });
   } catch (err) {
-    console.error("Login Error:", err);
+    console.error("❌ Login Error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
